@@ -3,6 +3,8 @@
 #include <cmath>
 #include "Curve.h"
 
+using namespace std;
+
 class Circle : public Curve
 {
 public:
@@ -16,7 +18,7 @@ public:
         return CurveType::Circle;
     }
 
-    std::string GetDefaultName() const override
+    string GetDefaultName() const override
     {
         return "Окружность";
     }
@@ -34,8 +36,8 @@ public:
     Point3D GetPoint(double t) const override
     {
         return Point3D(
-            radius_ * std::cos(t),
-            radius_ * std::sin(t),
+            radius_ * cos(t),
+            radius_ * sin(t),
             0.0
         );
     }
@@ -43,8 +45,8 @@ public:
     Point3D GetDerivative(double t) const override
     {
         return Point3D(
-            -radius_ * std::sin(t),
-            radius_ * std::cos(t),
+            -radius_ * sin(t),
+            radius_ * cos(t),
             0.0
         );
     }

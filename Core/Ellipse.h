@@ -3,6 +3,8 @@
 #include <cmath>
 #include "Curve.h"
 
+using namespace std;
+
 class Ellipse : public Curve
 {
 public:
@@ -17,7 +19,7 @@ public:
         return CurveType::Ellipse;
     }
 
-    std::string GetDefaultName() const override
+    string GetDefaultName() const override
     {
         return "Эллипс";
     }
@@ -45,8 +47,8 @@ public:
     Point3D GetPoint(double t) const override
     {
         return Point3D(
-            radiusX_ * std::cos(t),
-            radiusY_ * std::sin(t),
+            radiusX_ * cos(t),
+            radiusY_ * sin(t),
             0.0
         );
     }
@@ -54,8 +56,8 @@ public:
     Point3D GetDerivative(double t) const override
     {
         return Point3D(
-            -radiusX_ * std::sin(t),
-            radiusY_ * std::cos(t),
+            -radiusX_ * sin(t),
+            radiusY_ * cos(t),
             0.0
         );
     }

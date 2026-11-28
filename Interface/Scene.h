@@ -4,6 +4,8 @@
 #include <vector>
 #include "../Core/CurveManager.h"
 
+using namespace std;
+
 class Scene
 {
 public:
@@ -14,7 +16,7 @@ public:
 private:
     Camera3D cam_ = {{21, -17, 17}, {5, 5, 5}, {0, 0, 1}, 45, CAMERA_PERSPECTIVE};
     RenderTexture2D view_ = {};
-    std::vector<Vector3> pos_;
+    vector<Vector3> pos_;
     int drag_ = -1;
 
     void MoveCamera();

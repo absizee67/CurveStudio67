@@ -3,6 +3,8 @@
 #include <cmath>
 #include "Curve.h"
 
+using namespace std;
+
 class Helix : public Curve
 {
 public:
@@ -19,7 +21,7 @@ public:
         return CurveType::Helix;
     }
 
-    std::string GetDefaultName() const override
+    string GetDefaultName() const override
     {
         return "Спираль";
     }
@@ -48,8 +50,8 @@ public:
     {
         const double z = (step_ / kTwoPi) * t;
         return Point3D(
-            radius_ * std::cos(t),
-            radius_ * std::sin(t),
+            radius_ * cos(t),
+            radius_ * sin(t),
             z
         );
     }
@@ -58,8 +60,8 @@ public:
     {
         const double dzDt = step_ / kTwoPi;
         return Point3D(
-            -radius_ * std::sin(t),
-            radius_ * std::cos(t),
+            -radius_ * sin(t),
+            radius_ * cos(t),
             dzDt
         );
     }

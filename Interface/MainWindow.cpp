@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
+#include <cstdio>
+
+using namespace std;
 
 namespace
 {
@@ -62,14 +65,15 @@ double MainWindow::Input(const char* str, double value, int y)
         if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
         {
             char* end;
-            double n = std::strtod(input_.c_str(), &end);
+            double n = strtod(input_.c_str(), &end);
             bool valid = end != input_.c_str() && *end == '\0' &&
-                         std::isfinite(n) && n >= Curve::kMinPositiveValue;
-            if (valid)
+                         isfinite(n) && n >= Curve::kMinPositiveValue;
+            if (valid && !fresh_ && value != n)
             {
-                if (!fresh_) value = n;
-                edit_ = -1;
+                value = n;
+                changed_ = true;
             }
+            if (valid) edit_ = -1;
         }
         if (IsKeyPressed(KEY_ESCAPE)) edit_ = -1;
     }
@@ -85,30 +89,33 @@ double MainWindow::Input(const char* str, double value, int y)
     return value;
 }
 
-void MainWindow::Scroll(int count)
+void MainWindow::Scroll(Rectangle rect, int count, int visible, int& offset, int id)
 {
-    int max = std::max(0, count - rows);
+    int limit = max(0, count - visible);
     Vector2 mouse = GetMousePosition();
-    if (CheckCollisionPointRec(mouse, {28, 90, 246, listHeight}))
-        listScroll_ -= int(GetMouseWheelMove());
-    listScroll_ = std::clamp(listScroll_, 0, max);
-    if (max == 0)
+    if (CheckCollisionPointRec(mouse, rect))
+        offset -= int(GetMouseWheelMove());
+    offset = clamp(offset, 0, limit);
+    if (limit == 0)
+    {
+        if (scrollId_ == id) scrollId_ = 0;
         return;
+    }
 
-    Rectangle bar = {264, 90, 10, listHeight};
-    float h = std::max(16.0f, bar.height * rows / count);
+    Rectangle bar = {rect.x + rect.width - 10, rect.y, 10, rect.height};
+    float h = max(16.0f, bar.height * visible / count);
     float range = bar.height - h;
-    Rectangle thumb = {bar.x, bar.y + range * listScroll_ / max, bar.width, h};
+    Rectangle thumb = {bar.x, bar.y + range * offset / limit, bar.width, h};
     if (CheckCollisionPointRec(mouse, bar) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
     {
-        scrolling_ = true;
-        grab_ = CheckCollisionPointRec(mouse, thumb) ? mouse.y - thumb.y : h / 2;
+        scrollId_ = id;
+        scrollGrab_ = CheckCollisionPointRec(mouse, thumb) ? mouse.y - thumb.y : h / 2;
     }
-    if (scrolling_)
+    if (scrollId_ == id)
     {
-        float part = std::clamp((mouse.y - bar.y - grab_) / range, 0.0f, 1.0f);
-        listScroll_ = int(part * max + 0.5f);
-        thumb.y = bar.y + range * listScroll_ / max;
+        float part = clamp((mouse.y - bar.y - scrollGrab_) / range, 0.0f, 1.0f);
+        offset = int(part * limit + 0.5f);
+        thumb.y = bar.y + range * offset / limit;
     }
     DrawRectangleRec(bar, button);
     DrawRectangleRec(thumb, accent);
@@ -118,7 +125,7 @@ void MainWindow::DrawList()
 {
     Text("Кривые", 28, 68);
     int count = int(curves_.Size());
-    Scroll(count);
+    Scroll({28, 90, 246, listHeight}, count, rows, listScroll_, 1);
     float w = count > rows ? 230 : 246;
     for (int i = listScroll_; i < count && i < listScroll_ + rows; ++i)
     {
@@ -139,8 +146,9 @@ void MainWindow::DrawList()
         curves_.GenerateRandom(5);
     if (int(curves_.Size()) != count)
     {
+        changed_ = true;
         selected_ = int(curves_.Size()) - 1;
-        listScroll_ = std::max(0, selected_ - rows + 1);
+        listScroll_ = max(0, selected_ - rows + 1);
     }
 }
 
@@ -178,15 +186,80 @@ void MainWindow::DrawParams()
     {
         scene_.Remove(selected_);
         curves_.RemoveAt(selected_);
+        changed_ = true;
         selected_ = -1;
         edit_ = -1;
+    }
+}
+
+void MainWindow::PrintResults(const vector<const Circle*>& circles, double sum)
+{
+    printf("\nResults at t = pi/4\n");
+    for (int i = 0; i < int(curves_.Size()); ++i)
+    {
+        const Curve* c = curves_.At(i);
+        Point3D p = c->GetPoint(Curve::kPiOverFour);
+        Point3D d = c->GetDerivative(Curve::kPiOverFour);
+        printf("Curve #%d: point (%.10g, %.10g, %.10g), derivative (%.10g, %.10g, %.10g)\n",
+            i + 1, p.x, p.y, p.z, d.x, d.y, d.z);
+    }
+
+    printf("Sorted circle radii:\n");
+    for (const Circle* c : circles)
+        printf("R = %.10g\n", c->GetRadius());
+    printf("Total radius: %.10g\n", sum);
+}
+
+void MainWindow::DrawResults()
+{
+    DrawLine(28, 484, 274, 484, line);
+    Text("Расчёты при t = pi/4", 28, 492);
+    auto circles = curves_.GetSortedCircles();
+    double sum = curves_.GetCirclesRadiusSum();
+    Text(TextFormat("Окружности: %d", int(circles.size())), 28, 514);
+    Text(TextFormat("Сумма радиусов: %.6g", sum), 28, 536);
+
+    if (changed_)
+    {
+        PrintResults(circles, sum);
+        changed_ = false;
+    }
+
+    vector<string> lines;
+    const Curve* c = selected_ >= 0 ? curves_.At(selected_) : nullptr;
+    if (c)
+    {
+        Point3D p = c->GetPoint(Curve::kPiOverFour);
+        Point3D d = c->GetDerivative(Curve::kPiOverFour);
+        lines.push_back(TextFormat("%s #%d", c->GetDefaultName().c_str(), selected_ + 1));
+        lines.push_back(TextFormat("Точка: (%.4g, %.4g, %.4g)", p.x, p.y, p.z));
+        lines.push_back(TextFormat("Произв.: (%.4g, %.4g, %.4g)", d.x, d.y, d.z));
+    }
+
+    lines.push_back("Радиусы по возрастанию:");
+    for (const Circle* circle : circles)
+        lines.push_back(TextFormat("R = %.6g", circle->GetRadius()));
+    if (circles.empty()) lines.push_back("Нет окружностей");
+
+    int visible = (GetScreenHeight() - 580) / 20;
+    if (visible <= 0) return;
+    Rectangle rect = {28, 562, 246, float(visible * 20)};
+    int count = int(lines.size());
+    Scroll(rect, count, visible, resultScroll_, 2);
+    float w = count > visible ? 230 : 246;
+    for (int i = resultScroll_; i < count && i < resultScroll_ + visible; ++i)
+    {
+        const char* str = lines[i].c_str();
+        float size = 14;
+        while (MeasureTextEx(font_, str, size, 0.5f).x > w && size > 9) --size;
+        DrawTextEx(font_, str, {28, rect.y + (i - resultScroll_) * 20}, size, 0.5f, text);
     }
 }
 
 void MainWindow::Draw()
 {
     if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-        scrolling_ = false;
+        scrollId_ = 0;
 
     Text("CurveStudio / Редактор 3D-кривых", 16, 20);
     DrawRectangle(16, 58, 270, GetScreenHeight() - 74, panel);
@@ -195,6 +268,8 @@ void MainWindow::Draw()
     DrawList();
     if (selected_ != before) edit_ = -1;
     DrawParams();
+    if (selected_ != before) resultScroll_ = 0;
+    DrawResults();
 
     scene_.Draw({298, 58, float(GetScreenWidth() - 314), float(GetScreenHeight() - 74)}, curves_, selected_);
 }

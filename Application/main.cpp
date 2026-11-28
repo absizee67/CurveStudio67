@@ -2,6 +2,8 @@
 #include "../Interface/MainWindow.h"
 #include <vector>
 
+using namespace std;
+
 int main()
 {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -12,7 +14,7 @@ int main()
     SetWindowMinSize(1200, 750);
     SetTargetFPS(60);
     SetExitKey(KEY_NULL);
-    std::vector<int> chars;
+    vector<int> chars;
     for (int i = 32; i <= 126; ++i)
         chars.push_back(i);
     for (int i = 0x400; i <= 0x45F; ++i)

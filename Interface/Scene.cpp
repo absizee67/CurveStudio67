@@ -3,17 +3,14 @@
 #include <algorithm>
 #include <cmath>
 
+using namespace std;
+
 namespace
 {
-    const float size = 14;
+    const float gridSize = 14;
     const int segments = 100;
 
-    int Count(const Curve& curve)
-    {
-        return curve.GetType() == CurveType::Helix ? 3 * segments : segments;
-    }
-
-    const Vector3 ends[] = {{size + 1, 0, 0}, {0, size + 1, 0}, {0, 0, size + 1}};
+    const Vector3 ends[] = {{gridSize + 1, 0, 0}, {0, gridSize + 1, 0}, {0, 0, gridSize + 1}};
     const Color colors[] = {RED, GREEN, BLUE};
     const char* const names[] = {"X", "Y", "Z"};
 }
@@ -46,35 +43,40 @@ void Scene::MoveCamera()
     cam_.position = Vector3Add(cam_.position, move);
     cam_.target = Vector3Add(cam_.target, move);
 
+    bool rotate = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+    float wheel = GetMouseWheelMove();
+    if (!rotate && wheel == 0)
+        return;
+
     Vector3 offset = Vector3Subtract(cam_.position, cam_.target);
     float dist = Vector3Length(offset);
-    float yaw = std::atan2(offset.y, offset.x);
-    float pitch = std::asin(std::clamp(offset.z / dist, -1.0f, 1.0f));
+    float yaw = atan2(offset.y, offset.x);
+    float pitch = asin(clamp(offset.z / dist, -1.0f, 1.0f));
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+    if (rotate)
     {
         Vector2 mouse = GetMouseDelta();
         yaw -= mouse.x * 0.005f;
-        pitch = std::clamp(pitch + mouse.y * 0.005f, -1.4f, 1.4f);
+        pitch = clamp(pitch + mouse.y * 0.005f, -1.4f, 1.4f);
     }
 
-    dist = std::clamp(dist * std::pow(0.9f, GetMouseWheelMove()), 2.0f, 100.0f);
-    offset = {dist * std::cos(pitch) * std::cos(yaw),
-              dist * std::cos(pitch) * std::sin(yaw), dist * std::sin(pitch)};
+    dist = clamp(dist * pow(0.9f, wheel), 2.0f, 100.0f);
+    offset = {dist * cos(pitch) * cos(yaw),
+              dist * cos(pitch) * sin(yaw), dist * sin(pitch)};
     cam_.position = Vector3Add(cam_.target, offset);
 }
 
 void Scene::Grid()
 {
     Color gray = {45, 45, 45, 255};
-    for (float i = 1; i <= size; ++i)
+    for (float i = 1; i <= gridSize; ++i)
     {
-        DrawLine3D({i, 0, 0}, {i, size, 0}, gray);
-        DrawLine3D({0, i, 0}, {size, i, 0}, gray);
-        DrawLine3D({i, 0, 0}, {i, 0, size}, gray);
-        DrawLine3D({0, 0, i}, {size, 0, i}, gray);
-        DrawLine3D({0, i, 0}, {0, i, size}, gray);
-        DrawLine3D({0, 0, i}, {0, size, i}, gray);
+        DrawLine3D({i, 0, 0}, {i, gridSize, 0}, gray);
+        DrawLine3D({0, i, 0}, {gridSize, i, 0}, gray);
+        DrawLine3D({i, 0, 0}, {i, 0, gridSize}, gray);
+        DrawLine3D({0, 0, i}, {gridSize, 0, i}, gray);
+        DrawLine3D({0, i, 0}, {0, i, gridSize}, gray);
+        DrawLine3D({0, 0, i}, {0, gridSize, i}, gray);
     }
     for (int i = 0; i < 3; ++i)
         DrawLine3D({}, ends[i], colors[i]);
@@ -97,7 +99,7 @@ void Scene::MoveCurve()
 
     // Чем дальше камера, тем больше перемещение на один пиксель.
     float depth = Vector3DotProduct(Vector3Subtract(pos_[drag_], cam_.position), forward);
-    float scale = std::max(depth, 1.0f) * 2 * std::tan(cam_.fovy * float(Curve::kPi) / 360) / view_.texture.height;
+    float scale = max(depth, 1.0f) * 2 * tan(cam_.fovy * float(Curve::kPi) / 360) / view_.texture.height;
     Vector3 move = Vector3Add(Vector3Scale(right, mouse.x), Vector3Scale(up, -mouse.y));
     pos_[drag_] = Vector3Add(pos_[drag_], Vector3Scale(move, scale));
 }
@@ -118,7 +120,7 @@ void Scene::Draw(Rectangle rect, const CurveManager& curves, int selected)
         return;
     }
 
-    pos_.resize(curves.Size(), {size / 2, size / 2, 1});
+    pos_.resize(curves.Size(), {gridSize / 2, gridSize / 2, 1});
     bool inside = CheckCollisionPointRec(GetMousePosition(), rect);
     if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT) || drag_ != selected)
         drag_ = -1;
@@ -139,10 +141,15 @@ void Scene::Draw(Rectangle rect, const CurveManager& curves, int selected)
     for (int i = 0; i < int(curves.Size()); ++i)
     {
         const Curve& curve = *curves.At(i);
-        int n = Count(curve);
+        int n = curve.GetType() == CurveType::Helix ? 3 * segments : segments;
         Color color = i == selected ? YELLOW : WHITE;
-        for (int j = 0; j < n; ++j)
-            DrawLine3D(Point(curve, j, pos_[i]), Point(curve, j + 1, pos_[i]), color);
+        Vector3 a = Point(curve, 0, pos_[i]);
+        for (int j = 1; j <= n; ++j)
+        {
+            Vector3 b = Point(curve, j, pos_[i]);
+            DrawLine3D(a, b, color);
+            a = b;
+        }
     }
     EndMode3D();
     Vector3 forward = Vector3Subtract(cam_.target, cam_.position);

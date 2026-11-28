@@ -11,10 +11,12 @@
 #include "Ellipse.h"
 #include "Helix.h"
 
+using namespace std;
+
 class CurveManager
 {
 public:
-    std::size_t Size() const
+    size_t Size() const
     {
         return curves_.size();
     }
@@ -24,54 +26,54 @@ public:
         return curves_.empty();
     }
 
-    const Curve* At(std::size_t index) const
+    const Curve* At(size_t index) const
     {
         if (index >= curves_.size())
             return nullptr;
         return curves_[index].get();
     }
 
-    Curve* At(std::size_t index)
+    Curve* At(size_t index)
     {
         if (index >= curves_.size())
             return nullptr;
         return curves_[index].get();
     }
 
-    std::size_t AddCircle(double radius = 1.0)
+    size_t AddCircle(double radius = 1.0)
     {
-        curves_.push_back(std::make_unique<Circle>(radius));
+        curves_.push_back(make_unique<Circle>(radius));
         return curves_.size() - 1;
     }
 
-    std::size_t AddEllipse(double radiusX = 1.0, double radiusY = 1.0)
+    size_t AddEllipse(double radiusX = 1.0, double radiusY = 1.0)
     {
-        curves_.push_back(std::make_unique<Ellipse>(radiusX, radiusY));
+        curves_.push_back(make_unique<Ellipse>(radiusX, radiusY));
         return curves_.size() - 1;
     }
 
-    std::size_t AddHelix(double radius = 1.0, double step = 1.0)
+    size_t AddHelix(double radius = 1.0, double step = 1.0)
     {
-        curves_.push_back(std::make_unique<Helix>(radius, step));
+        curves_.push_back(make_unique<Helix>(radius, step));
         return curves_.size() - 1;
     }
 
-    bool RemoveAt(std::size_t index)
+    bool RemoveAt(size_t index)
     {
         if (index >= curves_.size())
             return false;
-        curves_.erase(curves_.begin() + static_cast<std::ptrdiff_t>(index));
+        curves_.erase(curves_.begin() + static_cast<ptrdiff_t>(index));
         return true;
     }
 
-    void GenerateRandom(std::size_t count = 5)
+    void GenerateRandom(size_t count = 5)
     {
-        static std::mt19937 rng(std::random_device{}());
-        std::uniform_int_distribution<int> typeDist(0, 2);
-        std::uniform_real_distribution<double> radiusDist(0.5, 6.0);
-        std::uniform_real_distribution<double> stepDist(0.5, 4.0);
+        static mt19937 rng(random_device{}());
+        uniform_int_distribution<int> typeDist(0, 2);
+        uniform_real_distribution<double> radiusDist(0.5, 6.0);
+        uniform_real_distribution<double> stepDist(0.5, 4.0);
 
-        for (std::size_t i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
             const int rawType = typeDist(rng);
             if (rawType == 0)
@@ -84,11 +86,11 @@ public:
     }
 
     // Отдельный контейнер только для окружностей, отсортированный по радиусу
-    std::vector<const Circle*> GetSortedCircles() const
+    vector<const Circle*> GetSortedCircles() const
     {
-        std::vector<const Circle*> circles = GetCircles();
+        vector<const Circle*> circles = GetCircles();
 
-        std::sort(circles.begin(), circles.end(),
+        sort(circles.begin(), circles.end(),
             [](const Circle* a, const Circle* b) {
                 return a->GetRadius() < b->GetRadius();
             });
@@ -99,17 +101,17 @@ public:
     // Сумма радиусов всех окружностей
     double GetCirclesRadiusSum() const
     {
-        const std::vector<const Circle*> circles = GetCircles();
-        return std::accumulate(circles.begin(), circles.end(), 0.0,
+        const vector<const Circle*> circles = GetCircles();
+        return accumulate(circles.begin(), circles.end(), 0.0,
             [](double sum, const Circle* circle) {
                 return sum + circle->GetRadius();
             });
     }
 
 private:
-    std::vector<const Circle*> GetCircles() const
+    vector<const Circle*> GetCircles() const
     {
-        std::vector<const Circle*> circles;
+        vector<const Circle*> circles;
         circles.reserve(curves_.size());
 
         for (const auto& curvePtr : curves_)
@@ -123,5 +125,5 @@ private:
         return circles;
     }
 
-    std::vector<std::unique_ptr<Curve>> curves_;
+    vector<unique_ptr<Curve>> curves_;
 };
